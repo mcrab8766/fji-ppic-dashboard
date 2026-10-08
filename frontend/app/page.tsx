@@ -1,6 +1,16 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { supabase } from "../lib/supabase";
 
 type Supply = {
@@ -73,10 +83,10 @@ export default function Home() {
       setError("");
 
       const { error } = await supabase.from("supplies").insert({
-        date: date,
+        date,
         gentan_code: gentanCode,
         qty: Number(qty),
-        remark: remark,
+        remark,
       });
 
       if (error) throw error;
@@ -113,6 +123,10 @@ export default function Home() {
     });
   }, [supplies, searchCode, filterDateFrom, filterDateTo]);
 
+  // =========================
+  // SUMMARY
+  // =========================
+
   const totalSupply = filteredSupplies.length;
 
   const totalQty = filteredSupplies.reduce(
@@ -130,6 +144,62 @@ export default function Home() {
     (supply) => supply.date === today
   ).length;
 
+  // =========================
+  // GRAFIK 1
+  // QTY SUPPLY PER HARI
+  // =========================
+
+  const dailyChartData = useMemo(() => {
+    const grouped: Record<string, number> = {};
+
+    filteredSupplies.forEach((supply) => {
+      if (!grouped[supply.date]) {
+        grouped[supply.date] = 0;
+      }
+
+      grouped[supply.date] += supply.qty;
+    });
+
+    return Object.entries(grouped)
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([date, qty]) => ({
+        date,
+        qty,
+      }));
+  }, [filteredSupplies]);
+
+  // =========================
+  // GRAFIK 2 & 3
+  // PER KODE GENTAN
+  // =========================
+
+  const gentanChartData = useMemo(() => {
+    const grouped: Record<
+      string,
+      { qty: number; transaksi: number }
+    > = {};
+
+    filteredSupplies.forEach((supply) => {
+      if (!grouped[supply.gentanCode]) {
+        grouped[supply.gentanCode] = {
+          qty: 0,
+          transaksi: 0,
+        };
+      }
+
+      grouped[supply.gentanCode].qty += supply.qty;
+      grouped[supply.gentanCode].transaksi += 1;
+    });
+
+    return Object.entries(grouped)
+      .sort(([, a], [, b]) => b.qty - a.qty)
+      .map(([gentanCode, data]) => ({
+        gentanCode,
+        qty: data.qty,
+        transaksi: data.transaksi,
+      }));
+  }, [filteredSupplies]);
+
   function resetFilter() {
     setSearchCode("");
     setFilterDateFrom("");
@@ -139,9 +209,13 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-100 p-8 text-gray-900">
       <div className="mx-auto max-w-7xl">
+
         {/* HEADER */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Dashboard PPIC</h1>
+          <h1 className="text-3xl font-bold">
+            Dashboard PPIC
+          </h1>
+
           <p className="mt-1 text-gray-600">
             Supply Material Line 7
           </p>
@@ -156,29 +230,52 @@ export default function Home() {
 
         {/* SUMMARY */}
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+
           <div className="rounded-xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">Total Supply</p>
-            <p className="mt-2 text-3xl font-bold">{totalSupply}</p>
+            <p className="text-sm text-gray-500">
+              Total Supply
+            </p>
+
+            <p className="mt-2 text-3xl font-bold">
+              {totalSupply}
+            </p>
           </div>
 
           <div className="rounded-xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">Total Qty</p>
-            <p className="mt-2 text-3xl font-bold">{totalQty}</p>
+            <p className="text-sm text-gray-500">
+              Total Qty
+            </p>
+
+            <p className="mt-2 text-3xl font-bold">
+              {totalQty}
+            </p>
           </div>
 
           <div className="rounded-xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">Total Material</p>
-            <p className="mt-2 text-3xl font-bold">{totalMaterial}</p>
+            <p className="text-sm text-gray-500">
+              Total Material
+            </p>
+
+            <p className="mt-2 text-3xl font-bold">
+              {totalMaterial}
+            </p>
           </div>
 
           <div className="rounded-xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">Supply Hari Ini</p>
-            <p className="mt-2 text-3xl font-bold">{supplyToday}</p>
+            <p className="text-sm text-gray-500">
+              Supply Hari Ini
+            </p>
+
+            <p className="mt-2 text-3xl font-bold">
+              {supplyToday}
+            </p>
           </div>
+
         </div>
 
         {/* FORM INPUT */}
         <div className="mb-8 rounded-xl bg-white p-6 shadow">
+
           <h2 className="mb-4 text-xl font-semibold">
             Input Supply Material
           </h2>
@@ -187,10 +284,12 @@ export default function Home() {
             onSubmit={handleSubmit}
             className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"
           >
+
             <div>
               <label className="mb-1 block text-sm font-medium">
                 Date
               </label>
+
               <input
                 type="date"
                 value={date}
@@ -203,6 +302,7 @@ export default function Home() {
               <label className="mb-1 block text-sm font-medium">
                 Kode Gentan
               </label>
+
               <input
                 type="text"
                 value={gentanCode}
@@ -216,6 +316,7 @@ export default function Home() {
               <label className="mb-1 block text-sm font-medium">
                 Qty
               </label>
+
               <input
                 type="number"
                 value={qty}
@@ -229,6 +330,7 @@ export default function Home() {
               <label className="mb-1 block text-sm font-medium">
                 Remark
               </label>
+
               <input
                 type="text"
                 value={remark}
@@ -239,20 +341,28 @@ export default function Home() {
             </div>
 
             <div className="md:col-span-2 lg:col-span-4">
+
               <button
                 type="submit"
                 disabled={saving}
                 className="rounded-lg bg-blue-600 px-5 py-2 font-medium text-white hover:bg-blue-700 disabled:bg-gray-400"
               >
-                {saving ? "Menyimpan..." : "Simpan Supply"}
+                {saving
+                  ? "Menyimpan..."
+                  : "Simpan Supply"}
               </button>
+
             </div>
+
           </form>
+
         </div>
 
         {/* FILTER */}
         <div className="mb-8 rounded-xl bg-white p-6 shadow">
+
           <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+
             <h2 className="text-xl font-semibold">
               Filter Data
             </h2>
@@ -263,17 +373,22 @@ export default function Home() {
             >
               Reset Filter
             </button>
+
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+
             <div>
               <label className="mb-1 block text-sm font-medium">
                 Cari Kode Gentan
               </label>
+
               <input
                 type="text"
                 value={searchCode}
-                onChange={(e) => setSearchCode(e.target.value)}
+                onChange={(e) =>
+                  setSearchCode(e.target.value)
+                }
                 placeholder="Contoh: G001"
                 className="w-full rounded-lg border p-2"
               />
@@ -283,10 +398,13 @@ export default function Home() {
               <label className="mb-1 block text-sm font-medium">
                 Dari Tanggal
               </label>
+
               <input
                 type="date"
                 value={filterDateFrom}
-                onChange={(e) => setFilterDateFrom(e.target.value)}
+                onChange={(e) =>
+                  setFilterDateFrom(e.target.value)
+                }
                 className="w-full rounded-lg border p-2"
               />
             </div>
@@ -295,19 +413,160 @@ export default function Home() {
               <label className="mb-1 block text-sm font-medium">
                 Sampai Tanggal
               </label>
+
               <input
                 type="date"
                 value={filterDateTo}
-                onChange={(e) => setFilterDateTo(e.target.value)}
+                onChange={(e) =>
+                  setFilterDateTo(e.target.value)
+                }
                 className="w-full rounded-lg border p-2"
               />
             </div>
+
           </div>
+
+        </div>
+
+        {/* GRAFIK */}
+        <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+          {/* GRAFIK HARIAN */}
+          <div className="rounded-xl bg-white p-6 shadow">
+
+            <h2 className="mb-4 text-xl font-semibold">
+              Qty Supply per Hari
+            </h2>
+
+            <div className="h-80">
+
+              {dailyChartData.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-gray-500">
+                  Tidak ada data
+                </div>
+              ) : (
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <BarChart data={dailyChartData}>
+
+                    <CartesianGrid strokeDasharray="3 3" />
+
+                    <XAxis dataKey="date" />
+
+                    <YAxis />
+
+                    <Tooltip />
+
+                    <Legend />
+
+                    <Bar
+                      dataKey="qty"
+                      name="Qty Supply"
+                    />
+
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+
+            </div>
+
+          </div>
+
+          {/* GRAFIK GENTAN */}
+          <div className="rounded-xl bg-white p-6 shadow">
+
+            <h2 className="mb-4 text-xl font-semibold">
+              Qty Supply per Kode Gentan
+            </h2>
+
+            <div className="h-80">
+
+              {gentanChartData.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-gray-500">
+                  Tidak ada data
+                </div>
+              ) : (
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <BarChart data={gentanChartData}>
+
+                    <CartesianGrid strokeDasharray="3 3" />
+
+                    <XAxis dataKey="gentanCode" />
+
+                    <YAxis />
+
+                    <Tooltip />
+
+                    <Legend />
+
+                    <Bar
+                      dataKey="qty"
+                      name="Qty Supply"
+                    />
+
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+
+            </div>
+
+          </div>
+
+          {/* TRANSAKSI */}
+          <div className="rounded-xl bg-white p-6 shadow lg:col-span-2">
+
+            <h2 className="mb-4 text-xl font-semibold">
+              Jumlah Transaksi per Kode Gentan
+            </h2>
+
+            <div className="h-80">
+
+              {gentanChartData.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-gray-500">
+                  Tidak ada data
+                </div>
+              ) : (
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <BarChart data={gentanChartData}>
+
+                    <CartesianGrid strokeDasharray="3 3" />
+
+                    <XAxis dataKey="gentanCode" />
+
+                    <YAxis />
+
+                    <Tooltip />
+
+                    <Legend />
+
+                    <Bar
+                      dataKey="transaksi"
+                      name="Jumlah Transaksi"
+                    />
+
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+
+            </div>
+
+          </div>
+
         </div>
 
         {/* TABLE */}
         <div className="rounded-xl bg-white p-6 shadow">
+
           <div className="mb-4 flex items-center justify-between">
+
             <h2 className="text-xl font-semibold">
               Data Supply
             </h2>
@@ -315,6 +574,7 @@ export default function Home() {
             <span className="text-sm text-gray-500">
               {filteredSupplies.length} data
             </span>
+
           </div>
 
           {loading ? (
@@ -327,37 +587,83 @@ export default function Home() {
             </p>
           ) : (
             <div className="overflow-x-auto">
+
               <table className="w-full border-collapse">
+
                 <thead>
+
                   <tr className="border-b bg-gray-50 text-left">
-                    <th className="p-3">No</th>
-                    <th className="p-3">Date</th>
-                    <th className="p-3">Kode Gentan</th>
-                    <th className="p-3">Qty</th>
-                    <th className="p-3">Remark</th>
+
+                    <th className="p-3">
+                      No
+                    </th>
+
+                    <th className="p-3">
+                      Date
+                    </th>
+
+                    <th className="p-3">
+                      Kode Gentan
+                    </th>
+
+                    <th className="p-3">
+                      Qty
+                    </th>
+
+                    <th className="p-3">
+                      Remark
+                    </th>
+
                   </tr>
+
                 </thead>
 
                 <tbody>
-                  {filteredSupplies.map((supply, index) => (
-                    <tr
-                      key={supply.id ?? index}
-                      className="border-b hover:bg-gray-50"
-                    >
-                      <td className="p-3">{index + 1}</td>
-                      <td className="p-3">{supply.date}</td>
-                      <td className="p-3 font-medium">
-                        {supply.gentanCode}
-                      </td>
-                      <td className="p-3">{supply.qty}</td>
-                      <td className="p-3">{supply.remark}</td>
-                    </tr>
-                  ))}
+
+                  {filteredSupplies.map(
+                    (supply, index) => (
+
+                      <tr
+                        key={
+                          supply.id ?? index
+                        }
+                        className="border-b hover:bg-gray-50"
+                      >
+
+                        <td className="p-3">
+                          {index + 1}
+                        </td>
+
+                        <td className="p-3">
+                          {supply.date}
+                        </td>
+
+                        <td className="p-3 font-medium">
+                          {supply.gentanCode}
+                        </td>
+
+                        <td className="p-3">
+                          {supply.qty}
+                        </td>
+
+                        <td className="p-3">
+                          {supply.remark}
+                        </td>
+
+                      </tr>
+
+                    )
+                  )}
+
                 </tbody>
+
               </table>
+
             </div>
           )}
+
         </div>
+
       </div>
     </main>
   );
