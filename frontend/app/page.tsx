@@ -33,6 +33,8 @@ export default function Home() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -82,28 +84,81 @@ export default function Home() {
       setSaving(true);
       setError("");
 
-      const { error } = await supabase.from("supplies").insert({
-        date,
-        gentan_code: gentanCode,
-        qty: Number(qty),
-        remark,
-      });
+      if (editingId !== null) {
+        const { error } = await supabase
+          .from("supplies")
+          .update({
+            date,
+            gentan_code: gentanCode,
+            qty: Number(qty),
+            remark,
+          })
+          .eq("id", editingId);
 
-      if (error) throw error;
+        if (error) throw error;
+
+        alert("Supply berhasil diperbarui!");
+      } else {
+        const { error } = await supabase.from("supplies").insert({
+          date,
+          gentan_code: gentanCode,
+          qty: Number(qty),
+          remark,
+        });
+
+        if (error) throw error;
+
+        alert("Supply berhasil disimpan!");
+      }
 
       await fetchSupplies();
-
-      setDate("");
-      setGentanCode("");
-      setQty("");
-      setRemark("");
-
-      alert("Supply berhasil disimpan!");
+      resetForm();
     } catch (error) {
       console.error(error);
-      setError("Gagal menyimpan supply ke Supabase.");
+      setError(
+        editingId !== null
+          ? "Gagal memperbarui supply ke Supabase."
+          : "Gagal menyimpan supply ke Supabase."
+      );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function startEdit(supply: Supply) {
+    setEditingId(supply.id ?? null);
+    setDate(supply.date);
+    setGentanCode(supply.gentanCode);
+    setQty(String(supply.qty));
+    setRemark(supply.remark);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setDate("");
+    setGentanCode("");
+    setQty("");
+    setRemark("");
+  }
+
+  async function handleDelete(id: number) {
+    const confirmed = window.confirm("Yakin ingin menghapus data supply ini?");
+    if (!confirmed) return;
+
+    try {
+      setError("");
+      const { error } = await supabase.from("supplies").delete().eq("id", id);
+      if (error) throw error;
+      alert("Supply berhasil dihapus!");
+      await fetchSupplies();
+    } catch (error) {
+      console.error(error);
+      setError("Gagal menghapus supply dari Supabase.");
     }
   }
 
@@ -273,12 +328,26 @@ export default function Home() {
 
         </div>
 
-        {/* FORM INPUT */}
+        {/* FORM INPUT / EDIT */}
         <div className="mb-8 rounded-xl bg-white p-6 shadow">
 
-          <h2 className="mb-4 text-xl font-semibold">
-            Input Supply Material
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold">
+              {editingId !== null
+                ? "Edit Supply Material"
+                : "Input Supply Material"}
+            </h2>
+
+            {editingId !== null && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-100"
+              >
+                Batal Edit
+              </button>
+            )}
+          </div>
 
           <form
             onSubmit={handleSubmit}
@@ -349,7 +418,9 @@ export default function Home() {
               >
                 {saving
                   ? "Menyimpan..."
-                  : "Simpan Supply"}
+                  : editingId !== null
+                    ? "Update Supply"
+                    : "Simpan Supply"}
               </button>
 
             </div>
@@ -425,6 +496,131 @@ export default function Home() {
             </div>
 
           </div>
+
+        </div>
+
+        {/* TABLE */}
+        <div className="rounded-xl bg-white p-6 shadow">
+
+          <div className="mb-4 flex items-center justify-between">
+
+            <h2 className="text-xl font-semibold">
+              Data Supply
+            </h2>
+
+            <span className="text-sm text-gray-500">
+              {filteredSupplies.length} data
+            </span>
+
+          </div>
+
+          {loading ? (
+            <p className="py-8 text-center text-gray-500">
+              Memuat data...
+            </p>
+          ) : filteredSupplies.length === 0 ? (
+            <p className="py-8 text-center text-gray-500">
+              Tidak ada data yang sesuai dengan filter.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+
+              <table className="w-full border-collapse">
+
+                <thead>
+
+                  <tr className="border-b bg-gray-50 text-left">
+
+                    <th className="p-3">
+                      No
+                    </th>
+
+                    <th className="p-3">
+                      Date
+                    </th>
+
+                    <th className="p-3">
+                      Kode Gentan
+                    </th>
+
+                    <th className="p-3">
+                      Qty
+                    </th>
+
+                    <th className="p-3">
+                      Remark
+                    </th>
+
+                    <th className="p-3">
+                      Action
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  {filteredSupplies.map(
+                    (supply, index) => (
+
+                      <tr
+                        key={
+                          supply.id ?? index
+                        }
+                        className="border-b hover:bg-gray-50"
+                      >
+
+                        <td className="p-3">
+                          {index + 1}
+                        </td>
+
+                        <td className="p-3">
+                          {supply.date}
+                        </td>
+
+                        <td className="p-3 font-medium">
+                          {supply.gentanCode}
+                        </td>
+
+                        <td className="p-3">
+                          {supply.qty}
+                        </td>
+
+                        <td className="p-3">
+                          {supply.remark}
+                        </td>
+
+                        <td className="p-3">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(supply)}
+                              className="rounded-lg bg-yellow-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-yellow-600"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => supply.id !== undefined && handleDelete(supply.id)}
+                              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+
+                      </tr>
+
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+          )}
 
         </div>
 
@@ -559,108 +755,6 @@ export default function Home() {
             </div>
 
           </div>
-
-        </div>
-
-        {/* TABLE */}
-        <div className="rounded-xl bg-white p-6 shadow">
-
-          <div className="mb-4 flex items-center justify-between">
-
-            <h2 className="text-xl font-semibold">
-              Data Supply
-            </h2>
-
-            <span className="text-sm text-gray-500">
-              {filteredSupplies.length} data
-            </span>
-
-          </div>
-
-          {loading ? (
-            <p className="py-8 text-center text-gray-500">
-              Memuat data...
-            </p>
-          ) : filteredSupplies.length === 0 ? (
-            <p className="py-8 text-center text-gray-500">
-              Tidak ada data yang sesuai dengan filter.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-
-              <table className="w-full border-collapse">
-
-                <thead>
-
-                  <tr className="border-b bg-gray-50 text-left">
-
-                    <th className="p-3">
-                      No
-                    </th>
-
-                    <th className="p-3">
-                      Date
-                    </th>
-
-                    <th className="p-3">
-                      Kode Gentan
-                    </th>
-
-                    <th className="p-3">
-                      Qty
-                    </th>
-
-                    <th className="p-3">
-                      Remark
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {filteredSupplies.map(
-                    (supply, index) => (
-
-                      <tr
-                        key={
-                          supply.id ?? index
-                        }
-                        className="border-b hover:bg-gray-50"
-                      >
-
-                        <td className="p-3">
-                          {index + 1}
-                        </td>
-
-                        <td className="p-3">
-                          {supply.date}
-                        </td>
-
-                        <td className="p-3 font-medium">
-                          {supply.gentanCode}
-                        </td>
-
-                        <td className="p-3">
-                          {supply.qty}
-                        </td>
-
-                        <td className="p-3">
-                          {supply.remark}
-                        </td>
-
-                      </tr>
-
-                    )
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-          )}
 
         </div>
 
