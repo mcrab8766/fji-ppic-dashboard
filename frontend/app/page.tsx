@@ -1,8 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 type Supply = {
+  id?: number;
   date: string;
   gentanCode: string;
   qty: number;
@@ -21,26 +23,33 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Mengambil data dari FastAPI
+  // Mengambil data langsung dari Supabase
   async function fetchSupplies() {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/supplies"
-      );
+      const { data, error } = await supabase
+        .from("supplies")
+        .select("id, date, gentan_code, qty, remark")
+        .order("id", { ascending: false });
 
-      if (!response.ok) {
-        throw new Error("Gagal mengambil data");
+      if (error) {
+        throw error;
       }
 
-      const data = await response.json();
+      const formattedData: Supply[] = (data ?? []).map((item) => ({
+        id: item.id,
+        date: item.date,
+        gentanCode: item.gentan_code,
+        qty: item.qty,
+        remark: item.remark ?? "",
+      }));
 
-      setSupplies(data);
+      setSupplies(formattedData);
     } catch (error) {
       console.error(error);
-      setError("Backend tidak dapat diakses.");
+      setError("Gagal mengambil data dari Supabase.");
     } finally {
       setLoading(false);
     }
@@ -50,7 +59,7 @@ export default function Home() {
     fetchSupplies();
   }, []);
 
-  // Mengirim data ke FastAPI
+  // Menyimpan data langsung ke Supabase
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -65,30 +74,21 @@ export default function Home() {
       setSaving(true);
       setError("");
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/supplies",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            date: date,
-            gentanCode: gentanCode,
-            qty: Number(qty),
-            remark: remark,
-          }),
-        }
-      );
+      const { error } = await supabase
+        .from("supplies")
+        .insert({
+          date: date,
+          gentan_code: gentanCode,
+          qty: Number(qty),
+          remark: remark,
+        });
 
-      if (!response.ok) {
-        throw new Error("Gagal menyimpan data");
+      if (error) {
+        throw error;
       }
 
-      // Ambil ulang data setelah berhasil menyimpan
       await fetchSupplies();
 
-      // Kosongkan form
       setDate("");
       setGentanCode("");
       setQty("");
@@ -97,7 +97,7 @@ export default function Home() {
       alert("Supply berhasil disimpan!");
     } catch (error) {
       console.error(error);
-      setError("Gagal menyimpan supply.");
+      setError("Gagal menyimpan supply ke Supabase.");
     } finally {
       setSaving(false);
     }
@@ -114,8 +114,10 @@ export default function Home() {
     supplies.map((supply) => supply.gentanCode)
   ).size;
 
+  const today = new Date().toISOString().split("T")[0];
+
   const supplyToday = supplies.filter(
-    (supply) => supply.date === "2026-10-06"
+    (supply) => supply.date === today
   ).length;
 
   return (
@@ -308,7 +310,7 @@ export default function Home() {
               {supplies.map((supply, index) => (
 
                 <tr
-                  key={index}
+                  key={supply.id ?? index}
                   className="border-b border-gray-200 hover:bg-gray-50"
                 >
 
