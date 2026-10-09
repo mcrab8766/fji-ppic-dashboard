@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   Bar,
   BarChart,
@@ -178,6 +179,31 @@ export default function Home() {
     });
   }, [supplies, searchCode, filterDateFrom, filterDateTo]);
 
+  function handleExportExcel() {
+    if (filteredSupplies.length === 0) {
+      alert("Tidak ada data yang dapat diekspor.");
+      return;
+    }
+
+    const exportData = filteredSupplies.map((supply, index) => ({
+      No: index + 1,
+      Date: supply.date,
+      "Kode Gentan": supply.gentanCode,
+      Qty: supply.qty,
+      Remark: supply.remark,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      "Supply Material"
+    );
+
+    XLSX.writeFile(workbook, "Data-Supply-Material.xlsx");
+  }
   // =========================
   // SUMMARY
   // =========================
@@ -499,19 +525,28 @@ export default function Home() {
 
         </div>
 
+        
         {/* TABLE */}
-        <div className="rounded-xl bg-white p-6 shadow">
+        <div className="mb-8 rounded-xl bg-white p-6 shadow">
 
-          <div className="mb-4 flex items-center justify-between">
-
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-semibold">
               Data Supply
             </h2>
 
-            <span className="text-sm text-gray-500">
-              {filteredSupplies.length} data
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">
+                {filteredSupplies.length} data
+              </span>
 
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+              >
+                Export Excel
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -524,104 +559,59 @@ export default function Home() {
             </p>
           ) : (
             <div className="overflow-x-auto">
-
               <table className="w-full border-collapse">
-
                 <thead>
-
                   <tr className="border-b bg-gray-50 text-left">
-
-                    <th className="p-3">
-                      No
-                    </th>
-
-                    <th className="p-3">
-                      Date
-                    </th>
-
-                    <th className="p-3">
-                      Kode Gentan
-                    </th>
-
-                    <th className="p-3">
-                      Qty
-                    </th>
-
-                    <th className="p-3">
-                      Remark
-                    </th>
-
-                    <th className="p-3">
-                      Action
-                    </th>
-
+                    <th className="p-3">No</th>
+                    <th className="p-3">Date</th>
+                    <th className="p-3">Kode Gentan</th>
+                    <th className="p-3">Qty</th>
+                    <th className="p-3">Remark</th>
+                    <th className="p-3">Action</th>
                   </tr>
-
                 </thead>
 
                 <tbody>
+                  {filteredSupplies.map((supply, index) => (
+                    <tr
+                      key={supply.id ?? index}
+                      className="border-b hover:bg-gray-50"
+                    >
+                      <td className="p-3">{index + 1}</td>
+                      <td className="p-3">{supply.date}</td>
+                      <td className="p-3 font-medium">
+                        {supply.gentanCode}
+                      </td>
+                      <td className="p-3">{supply.qty}</td>
+                      <td className="p-3">{supply.remark}</td>
+                      <td className="p-3">
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(supply)}
+                            className="rounded-lg bg-yellow-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-yellow-600"
+                          >
+                            Edit
+                          </button>
 
-                  {filteredSupplies.map(
-                    (supply, index) => (
-
-                      <tr
-                        key={
-                          supply.id ?? index
-                        }
-                        className="border-b hover:bg-gray-50"
-                      >
-
-                        <td className="p-3">
-                          {index + 1}
-                        </td>
-
-                        <td className="p-3">
-                          {supply.date}
-                        </td>
-
-                        <td className="p-3 font-medium">
-                          {supply.gentanCode}
-                        </td>
-
-                        <td className="p-3">
-                          {supply.qty}
-                        </td>
-
-                        <td className="p-3">
-                          {supply.remark}
-                        </td>
-
-                        <td className="p-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEdit(supply)}
-                              className="rounded-lg bg-yellow-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-yellow-600"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => supply.id !== undefined && handleDelete(supply.id)}
-                              className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-
-                      </tr>
-
-                    )
-                  )}
-
+                          <button
+                            type="button"
+                            onClick={() =>
+                              supply.id !== undefined &&
+                              handleDelete(supply.id)
+                            }
+                            className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
-
               </table>
-
             </div>
           )}
-
         </div>
 
         {/* GRAFIK */}
