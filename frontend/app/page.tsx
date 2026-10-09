@@ -202,7 +202,24 @@ export default function Home() {
       "Supply Material"
     );
 
-    XLSX.writeFile(workbook, "Data-Supply-Material.xlsx");
+    const formatTanggal = (tanggal: string) => {
+  const [tahun, bulan, hari] = tanggal.split("-");
+  return `${hari}-${bulan}-${tahun}`;
+};
+
+let namaFile = "Data-Supply-Material";
+
+if (filterDateFrom && filterDateTo) {
+  namaFile += `-${formatTanggal(filterDateFrom)}_s.d_${formatTanggal(filterDateTo)}`;
+} else if (filterDateFrom) {
+  namaFile += `-Mulai-${formatTanggal(filterDateFrom)}`;
+} else if (filterDateTo) {
+  namaFile += `-Sampai-${formatTanggal(filterDateTo)}`;
+} else {
+  namaFile += "-Semua-Tanggal";
+}
+
+XLSX.writeFile(workbook, `${namaFile}.xlsx`);
   }
   // =========================
   // SUMMARY
