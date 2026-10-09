@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import {
   Bar,
   BarChart,
@@ -193,20 +193,114 @@ export default function Home() {
       Remark: supply.remark,
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
+    
+const worksheet = XLSX.utils.json_to_sheet(exportData);
+const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      "Supply Material"
-    );
+// Atur lebar setiap kolom
+worksheet["!cols"] = [
+  { wch: 6 },   // No
+  { wch: 15 },  // Date
+  { wch: 22 },  // Kode Gentan
+  { wch: 12 },  // Qty
+  { wch: 35 },  // Remark
+];
 
-    const formatTanggal = (tanggal: string) => {
+// Ambil rentang sel Excel
+const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:E1");
+
+// Format header
+for (let col = range.s.c; col <= range.e.c; col++) {
+  const cellAddress = XLSX.utils.encode_cell({
+    r: 0,
+    c: col,
+  });
+
+  if (worksheet[cellAddress]) {
+    worksheet[cellAddress].s = {
+      font: {
+        bold: true,
+        color: { rgb: "FFFFFF" },
+      },
+      fill: {
+        patternType: "solid",
+        fgColor: { rgb: "166534" },
+      },
+      alignment: {
+        horizontal: "center",
+        vertical: "center",
+      },
+      border: {
+        bottom: {
+          style: "thin",
+          color: { rgb: "D1D5DB" },
+        },
+      },
+    };
+  }
+}
+
+// Format isi tabel
+for (let row = 1; row <= range.e.r; row++) {
+  for (let col = range.s.c; col <= range.e.c; col++) {
+    const cellAddress = XLSX.utils.encode_cell({
+      r: row,
+      c: col,
+    });
+
+    const cell = worksheet[cellAddress];
+
+    if (!cell) continue;
+
+    cell.s = {
+      alignment: {
+        vertical: "center",
+        horizontal: col === 2 ? "left" : "center",
+      },
+      border: {
+        bottom: {
+          style: "hair",
+          color: { rgb: "E5E7EB" },
+        },
+      },
+    };
+
+    // Format Qty dengan pemisah ribuan
+    if (col === 3) {
+      cell.s = {
+        ...cell.s,
+        alignment: {
+          horizontal: "right",
+          vertical: "center",
+        },
+        numFmt: "#,##0",
+      };
+    }
+  }
+}
+
+// Aktifkan filter pada header
+worksheet["!autofilter"] = {
+  ref: XLSX.utils.encode_range(range),
+};
+
+// Tinggi baris header
+worksheet["!rows"] = [{ hpt: 24 }];
+
+XLSX.utils.book_append_sheet(
+  workbook,
+  worksheet,
+  "Supply Material"
+);
+
+// Gunakan kembali variabel namaFile dan logika tanggal yang sudah ada
+// Membuat format tanggal DD-MM-YYYY
+const formatTanggal = (tanggal: string) => {
   const [tahun, bulan, hari] = tanggal.split("-");
   return `${hari}-${bulan}-${tahun}`;
 };
 
+// Menentukan nama file berdasarkan filter tanggal
 let namaFile = "Data-Supply-Material";
 
 if (filterDateFrom && filterDateTo) {
@@ -219,6 +313,7 @@ if (filterDateFrom && filterDateTo) {
   namaFile += "-Semua-Tanggal";
 }
 
+// Download Excel
 XLSX.writeFile(workbook, `${namaFile}.xlsx`);
   }
   // =========================
